@@ -1,8 +1,15 @@
+#!/usr/bin/env python
+
+"""
+Leaderboard system core logic
+
+See README.md for further documentation, and tests/ directory for examples.
+"""
+
 import datetime as dt
 import time
 import hashlib
 
-# todo - abstract storage
 from redis import Redis
 
 _KEY_DELIMITER = '/'
@@ -18,10 +25,10 @@ class TimeRange(object):
         return _KEY_DELIMITER.join([self.range_code,
                                    date.strftime(self.slot_format)])
 
+
 class Leaderboard(object):
     """
-    Main class for leaderboards. See README.md for further documentation,
-    and tests/ directory for examples.
+    Main class for leaderboards.
     """
 
     # Constants for specifying range(s) to Leaderboard constructor
@@ -51,7 +58,7 @@ class Leaderboard(object):
         d = dt.date.fromtimestamp(time.time())
 
         return _KEY_DELIMITER.join(["leaders", self.game, self.metric,
-                                        range.format(d)])
+                                    range.format(d)])
 
     def _hashlist(self, l):
         """
@@ -99,7 +106,6 @@ class Leaderboard(object):
             if r != self.RANGE_ALLTIME:
                 self.store.expire(key, r.expiration)
 
-
     def leaders(self, range, limit=-1, offset=0, slots_ago=0):
         '''
         retrieve a list of global leaders
@@ -122,27 +128,32 @@ class Leaderboard(object):
                               withscores=True)
         return self._add_ranks(l)
 
-    def leaders_friends(self, friends, range, limit=-1, offset=0, slots_ago=0):
+    def leaders_friends_list(self, friends, range, limit=-1, offset=0, slots_ago=0):
         '''
         retrieve a list of leaders from the given friends list
         '''
-        key = self._board_key(range, slots_ago)
-
         # create a temp zset of friends to intersect w/global list
         # todo: allow for caching the friend list via config
         tmpid = self._hashlist(friends)
         friends_key = 'friends_' + tmpid
-        inter_key = 'inter_' + tmpid
         # todo: pipeline
         for f in friends:
             self.store.zadd(friends_key, f, 0)
+
+        l = self.leaders_friends_key(friends_key, range, limit, offset, slots_ago)
+        self.store.delete(friends_key)
+        return l
+
+    def leaders_friends_key(self, friends_key, range, limit=-1, offset=0, slots_ago=0):
+        '''
+        retrieve a list of leaders from the given friends list
+        '''
+        key = self._board_key(range, slots_ago)
+        inter_key = 'inter_' + friends_key + "_" + key
 
         self.store.zinterstore(inter_key, [key, friends_key])
         end = offset + limit if limit > 0 else -1
         l = self.store.zrange(inter_key, offset, end, withscores=True)
 
-        self.store.delete(friends_key)
         self.store.delete(inter_key)
-
         return self._add_ranks(l)
-
