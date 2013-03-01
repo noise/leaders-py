@@ -1,13 +1,16 @@
 import unittest
 
 from leaders.leaders import Leaderboard
-from redis import Redis
+#from redis import Redis
+from redismock import mockmanager
 
 
 class Functional(unittest.TestCase):
     b = Leaderboard('combat', 'hs', [Leaderboard.RANGE_DAILY])
     b2 = Leaderboard('combat', 'earned', [Leaderboard.RANGE_DAILY, Leaderboard.RANGE_WEEKLY])
-    r = Redis(host='localhost', port=6379, db=0)  # todo db 9
+    #r = Redis(host='localhost', port=6379, db=0)  # todo db 9
+    r = mockmanager.mock_redis_client()
+
     size = 20
 
     @classmethod
