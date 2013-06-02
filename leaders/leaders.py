@@ -42,11 +42,14 @@ class Leaderboard(object):
     RANGE_ALLTIME = TimeRange('a', 'a', -1)
     RANGES_ALL = [RANGE_DAILY, RANGE_WEEKLY, RANGE_MONTHLY, RANGE_ALLTIME]
 
-    def __init__(self, game, metric, ranges=RANGES_ALL):
+    def __init__(self, game, metric, ranges=RANGES_ALL, redis=None):
         self.game = game
         self.metric = metric
         self.ranges = ranges
-        self.store = Redis()
+        if not redis:
+            self.store = Redis()
+        else:
+            self.store = redis
 
     def _board_key(self, range, slots_ago=0):
         """
